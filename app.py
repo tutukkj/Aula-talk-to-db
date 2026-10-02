@@ -24,25 +24,32 @@ Erro → LLM → novo SQL → SQLite
 
 import os
 import re
-import sqlite3
 from dataclasses import dataclass
 
 import pandas as pd
 import streamlit as st
 from groq import Groq
+from sqlalchemy import create_engine, text
 
 
 # ============================================================
 # CONFIGURAÇÃO
 # ============================================================
 
-DB_PATH = "copa.db"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
 MAX_TENTATIVAS = 3
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+
+if not DATABASE_URL:
+    st.error(
+        "A variável de ambiente DATABASE_URL não foi configurada."
+    )
+    st.stop()
 
 
 if not GROQ_API_KEY:
@@ -54,6 +61,12 @@ if not GROQ_API_KEY:
 
 cliente = Groq(
     api_key=GROQ_API_KEY
+)
+
+
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True
 )
 
 
@@ -81,14 +94,9 @@ class Resultado:
 
 def conectar():
 
-    # Abre explicitamente em modo somente leitura.
-
-    uri = f"file:{os.path.abspath(DB_PATH)}?mode=ro"
-
-    return sqlite3.connect(
-        uri,
-        uri=True
-    )
+    conn = engine.connect()
+    conn.execute(text("SET TRANSACTION READ ONLY"))
+    return conn
 
 
 def montar_schema():
@@ -105,12 +113,15 @@ def montar_schema():
     cursor = conn.cursor()
 
     tabelas = cursor.execute(
-        """
-        SELECT name
-        FROM sqlite_master
-        WHERE type='table'
-        AND name NOT LIKE 'sqlite_%'
-        """
+        text(
+            """
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_type = 'BASE TABLE'
+            ORDER BY table_name
+            """
+        )
     ).fetchall()
 
 
@@ -120,7 +131,16 @@ def montar_schema():
     for (tabela,) in tabelas:
 
         colunas = cursor.execute(
-            f'PRAGMA table_info("{tabela}")'
+            text(
+                """
+                SELECT column_name, data_type
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = :table_name
+                ORDER BY ordinal_position
+                """
+            ),
+            {"table_name": tabela}
         ).fetchall()
 
 
@@ -129,10 +149,7 @@ def montar_schema():
         ]
 
 
-        for coluna in colunas:
-
-            nome = coluna[1]
-            tipo = coluna[2]
+        for nome, tipo in colunas:
 
             descricao.append(
                 f"- {nome} ({tipo})"
@@ -386,10 +403,7 @@ def executar_sql(sql):
 
     try:
 
-        df = pd.read_sql_query(
-            sql,
-            conn
-        )
+        df = pd.read_sql_query(text(sql), conn)
 
     finally:
 
