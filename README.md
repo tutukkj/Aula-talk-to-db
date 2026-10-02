@@ -5,9 +5,8 @@ Agente de IA que responde perguntas em português sobre estatísticas de jogador
 ## Acesso rápido
 
 - [Abrir o Google Colab](https://colab.research.google.com/): use o notebook `copagpt.ipynb` desta pasta em **File > Upload notebook**.
-- **Aplicação em produção:** configure aqui a URL publicada do Streamlit: `COLE_A_URL_DE_PRODUCAO_AQUI`.
+- **Aplicação em produção:** configure aqui a URL publicada do Streamlit: `https://aula-talk-to-db-eoam645gjfytummvom5tjs.streamlit.app/`.
 
-> A URL de produção ainda não está registrada neste projeto. Depois do deploy, substitua o texto acima por um link como `https://nome-do-app.streamlit.app`.
 
 ## O que a aula demonstra
 
