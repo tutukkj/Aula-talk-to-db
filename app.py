@@ -110,9 +110,7 @@ def montar_schema():
 
     conn = conectar()
 
-    cursor = conn.cursor()
-
-    tabelas = cursor.execute(
+    tabelas = conn.execute(
         text(
             """
             SELECT table_name
@@ -130,7 +128,7 @@ def montar_schema():
 
     for (tabela,) in tabelas:
 
-        colunas = cursor.execute(
+        colunas = conn.execute(
             text(
                 """
                 SELECT column_name, data_type
